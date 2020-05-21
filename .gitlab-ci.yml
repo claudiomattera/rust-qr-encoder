@@ -102,7 +102,8 @@ package-linux-standalone:cargo:
     expire_in: 1 day
 
 
-package-windows-x86_64:cargo:
+# Compilation on Windows is unsupported due to dependency on GTK
+.package-windows-x86_64:cargo:
   stage: package
   image: rust:latest
   only:
