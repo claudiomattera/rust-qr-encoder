@@ -1,6 +1,6 @@
 [package]
 name = "rust-qr-encoder"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Claudio Mattera <claudio@mattera.it>"]
 edition = "2018"
 description = "An application that displays a QR code from text"
