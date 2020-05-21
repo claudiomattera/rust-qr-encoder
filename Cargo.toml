@@ -1,0 +1,36 @@
+[package]
+name = "rust-qr-encoder"
+version = "0.1.0"
+authors = ["Claudio Mattera <claudio@mattera.it>"]
+edition = "2018"
+description = "An application that displays a QR code from text"
+readme = "Readme.md"
+homepage = "https://gitlab.com/claudiomattera/rust-qr-encoder/"
+repository = "https://gitlab.com/claudiomattera/rust-qr-encoder/"
+license = "MIT"
+keywords = [
+    "qr",
+]
+categories = [
+    "encoding",
+    "visualization",
+]
+publish = false
+
+
+[dependencies]
+log = "0.4"
+env_logger = "0.7"
+clap = "2.33"
+qrcode = "~0.12"
+image = "^0.23"
+glib = "^0"
+gdk-pixbuf = "^0.8"
+
+[dependencies.gtk]
+version = "0.8.1"
+features = ["v3_16"]
+
+[dependencies.gio]
+version = ""
+features = ["v2_44"]

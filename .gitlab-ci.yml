@@ -1,0 +1,114 @@
+stages:
+  - configure
+  - lint
+  - build
+  - test
+  - documentation
+  - package
+
+
+# Ignore warnings about format from rustfmt
+.lint:rustfmt:
+  stage: lint
+  image: rust:latest
+  before_script:
+    - rustup component add rustfmt
+  script:
+    - cargo fmt --all -- --check
+  allow_failure: true
+
+
+lint:clippy:
+  stage: lint
+  image: rust:latest
+  before_script:
+    - rustup component add clippy
+  script:
+    - cargo clippy --all-targets --all-features
+  allow_failure: true
+
+
+build:cargo:
+  stage: build
+  image: rust:latest
+  script:
+    - cargo build --all-targets --all-features
+  artifacts:
+    paths:
+      - 'target/debug/'
+    expire_in: 1 day
+
+
+test:cargo:
+  stage: test
+  image: rust:latest
+  script:
+    - cargo test
+  dependencies:
+    - build:cargo
+
+
+package-linux:cargo:
+  stage: package
+  image: rust:latest
+  only:
+    - tags
+  before_script:
+    - rustup target add x86_64-unknown-linux-gnu
+  script:
+    - cargo build --release --target=x86_64-unknown-linux-gnu
+  artifacts:
+    paths:
+      - 'target/x86_64-unknown-linux-gnu/release/${CI_PROJECT_NAME}'
+    expire_in: 1 day
+
+
+package-linux-standalone:cargo:
+  stage: package
+  image: rust:latest
+  only:
+    - tags
+  before_script:
+    - rustup target add x86_64-unknown-linux-musl
+  script:
+    - cargo build --release --target=x86_64-unknown-linux-musl
+  artifacts:
+    paths:
+      - 'target/x86_64-unknown-linux-musl/release/${CI_PROJECT_NAME}'
+    expire_in: 1 day
+
+
+# Cross compilation to Windows x86 from Debian is unsupported
+# https://github.com/rust-lang/rust/issues/12859
+.package-windows-x86:cargo:
+  stage: package
+  image: rust:latest
+  only:
+    - tags
+  before_script:
+    - apt-get update
+    - apt-get install -y mingw-w64
+    - rustup target add i686-pc-windows-gnu
+  script:
+    - cargo build --release --target=i686-pc-windows-gnu
+  artifacts:
+    paths:
+      - 'target/i686-pc-windows-gnu/release/${CI_PROJECT_NAME}.exe'
+    expire_in: 1 day
+
+
+package-windows-x86_64:cargo:
+  stage: package
+  image: rust:latest
+  only:
+    - tags
+  before_script:
+    - apt-get update
+    - apt-get install -y mingw-w64
+    - rustup target add x86_64-pc-windows-gnu
+  script:
+    - cargo build --release --target=x86_64-pc-windows-gnu
+  artifacts:
+    paths:
+      - 'target/x86_64-pc-windows-gnu/release/${CI_PROJECT_NAME}.exe'
+    expire_in: 1 day
