@@ -6,6 +6,11 @@ stages:
   - documentation
   - package
 
+default:
+  before_script:
+    - apt-get update
+    - apt-get install -y gtk+-3.0-dev
+
 
 # Ignore warnings about format from rustfmt
 .lint:rustfmt:
