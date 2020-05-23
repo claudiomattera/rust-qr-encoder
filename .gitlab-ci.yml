@@ -28,6 +28,8 @@ lint:clippy:
   image: rust:latest
   before_script:
     - rustup component add clippy
+    - apt-get update
+    - apt-get install -y gtk+-3.0-dev librust-pango-dev
   script:
     - cargo clippy --all-targets --all-features
   allow_failure: true
@@ -53,7 +55,7 @@ test:cargo:
     - build:cargo
 
 
-package-linux:cargo:
+package:cargo:linux:
   stage: package
   image: rust:latest
   only:
@@ -71,7 +73,7 @@ package-linux:cargo:
     expire_in: 1 day
 
 
-package-linux-standalone:cargo:
+package:cargo:linux-standalone:
   stage: package
   image: rust:latest
   only:
@@ -91,7 +93,7 @@ package-linux-standalone:cargo:
 
 # Cross compilation to Windows x86 from Debian is unsupported
 # https://github.com/rust-lang/rust/issues/12859
-.package-windows-x86:cargo:
+.package:cargo:windows:x86:
   stage: package
   image: rust:latest
   only:
@@ -110,7 +112,7 @@ package-linux-standalone:cargo:
 
 
 # Compilation on Windows is unsupported due to dependency on GTK
-.package-windows-x86_64:cargo:
+.package:cargo:windows:x86_64:
   stage: package
   image: rust:latest
   only:
@@ -125,4 +127,22 @@ package-linux-standalone:cargo:
   artifacts:
     paths:
       - 'target/x86_64-pc-windows-gnu/release/${CI_PROJECT_NAME}.exe'
+    expire_in: 1 day
+
+
+package:ebuild:
+  stage: package
+  image: rust:latest
+  only:
+    - tags
+  before_script:
+    - apt-get update
+    - apt-get install -y jq
+  script:
+    - FILTER='.packages | map(select(.name != "${CI_PROJECT_NAME}")) | sort_by(.name + .version) | .[] | (.name + "-" + .version)'
+    - CRATES=`cargo metadata --all-features --format-version=1 | jq -r "${FILTER}"`
+    - echo $CRATES | sed -e '/^{{ crates }}/{r /dev/stdin' -e 'd;}' packaging/gentoo/rust-qr-encoder.ebuild > packaging/gentoo/rust-qr-encoder-${CI_COMMIT_TAG:1}.ebuild
+  artifacts:
+    paths:
+      - 'packaging/gentoo/rust-qr-encoder-${CI_COMMIT_TAG:1}.ebuild'
     expire_in: 1 day
