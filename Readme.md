@@ -11,7 +11,7 @@ This is a [Rust] application that displays a [QR code] from text.
 Installation
 ----
 
-Executables for Linux and Windows can be found in the [releases page](https://gitlab.com/claudiomattera/rust-qr-encoder/-/releases).
+Executables for Linux can be found in the [releases page](https://gitlab.com/claudiomattera/rust-qr-encoder/-/releases).
 
 
 ### From source
