@@ -15,124 +15,107 @@
       <placeholder/>
     </child>
     <child>
-      <object class="GtkBox">
+      <object class="GtkGrid">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
-        <property name="orientation">vertical</property>
+        <property name="halign">center</property>
         <child>
-          <object class="GtkGrid">
+          <object class="GtkEntry" id="text_entry">
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="halign">center</property>
-            <child>
-              <object class="GtkEntry" id="text_entry">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left_attach">1</property>
-                <property name="top_attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Text</property>
-              </object>
-              <packing>
-                <property name="left_attach">0</property>
-                <property name="top_attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Error Correction</property>
-              </object>
-              <packing>
-                <property name="left_attach">0</property>
-                <property name="top_attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkComboBoxText" id="error_correction_combobox">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="active">2</property>
-                <items>
-                  <item translatable="yes">High (30%)</item>
-                  <item translatable="yes">Quartile (25%)</item>
-                  <item translatable="yes">Medium (15%)</item>
-                  <item translatable="yes">Low (7%)</item>
-                </items>
-                <signal name="changed" handler="on_error_correction_combobox_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left_attach">1</property>
-                <property name="top_attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Mode</property>
-              </object>
-              <packing>
-                <property name="left_attach">0</property>
-                <property name="top_attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkComboBoxText" id="mode_combobox">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="active">0</property>
-                <items>
-                  <item translatable="yes">Automatic</item>
-                  <item translatable="yes">Numeric</item>
-                  <item translatable="yes">Alphanumeric</item>
-                  <item translatable="yes">Binary</item>
-                </items>
-                <signal name="changed" handler="on_mode_combobox_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left_attach">1</property>
-                <property name="top_attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Size</property>
-              </object>
-              <packing>
-                <property name="left_attach">0</property>
-                <property name="top_attach">3</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkSpinButton" id="size_spinbutton">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="input_purpose">number</property>
-                <property name="adjustment">scale_adjustment</property>
-                <property name="numeric">True</property>
-              </object>
-              <packing>
-                <property name="left_attach">1</property>
-                <property name="top_attach">3</property>
-              </packing>
-            </child>
+            <property name="can_focus">True</property>
+            <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
           </object>
           <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
+            <property name="left_attach">1</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Text</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Error Correction</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkComboBoxText" id="error_correction_combobox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="active">2</property>
+            <items>
+              <item translatable="yes">High (30%)</item>
+              <item translatable="yes">Quartile (25%)</item>
+              <item translatable="yes">Medium (15%)</item>
+              <item translatable="yes">Low (7%)</item>
+            </items>
+            <signal name="changed" handler="on_error_correction_combobox_changed" swapped="no"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkToolbar">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <property name="show_arrow">False</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">4</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Size</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSpinButton" id="size_spinbutton">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="input_purpose">number</property>
+            <property name="adjustment">scale_adjustment</property>
+            <property name="numeric">True</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkToolButton" id="save_button">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="use_underline">True</property>
+            <property name="stock_id">gtk-save-as</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">3</property>
           </packing>
         </child>
         <child>
@@ -142,9 +125,8 @@
             <property name="stock">gtk-missing-image</property>
           </object>
           <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
+            <property name="left_attach">1</property>
+            <property name="top_attach">3</property>
           </packing>
         </child>
         <child>
@@ -157,9 +139,8 @@
             </attributes>
           </object>
           <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
+            <property name="left_attach">1</property>
+            <property name="top_attach">4</property>
           </packing>
         </child>
       </object>

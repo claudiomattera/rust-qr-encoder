@@ -1,11 +1,16 @@
 use gtk::prelude::*;
 use gio::prelude::*;
 
-use gtk::{Application, ApplicationWindow, Builder, ComboBoxText, Entry, Image, Label, SpinButton};
+use gtk::{
+    Application, ApplicationWindow, Builder, ComboBoxText, Entry,  FileChooserAction,
+    FileChooserDialogBuilder, FileFilter, Image, Label, ResponseType, SpinButton, ToolButton
+};
 
 use gdk_pixbuf::{Colorspace, Pixbuf};
 
 use std::env::args;
+use std::fs::File;
+use std::io::Write;
 
 use log::*;
 
@@ -50,71 +55,90 @@ fn build_ui(application: &gtk::Application) {
     let error_correction_combobox: ComboBoxText = builder
         .get_object("error_correction_combobox").
         expect("Couldn't get error_correction_combobox");
-    let mode_combobox: ComboBoxText = builder
-        .get_object("mode_combobox").
-        expect("Couldn't get mode_combobox");
     let size_spinbutton: SpinButton = builder
         .get_object("size_spinbutton").
         expect("Couldn't get size_spinbutton");
     let error_label: Label = builder
         .get_object("error_label").
         expect("Couldn't get error_label");
+    let save_button: ToolButton = builder
+        .get_object("save_button").
+        expect("Couldn't get save_button");
 
     window.set_title("QR Encoder");
-    mode_combobox.set_sensitive(false);
 
-    text_entry.connect_changed(move |entry| {
-        error_label.set_text("");
+    {
+        let text_entry = text_entry.clone();
+        let error_correction_combobox = error_correction_combobox.clone();
+        let size_spinbutton = size_spinbutton.clone();
+        let error_label = error_label.clone();
+        let qr_image = qr_image.clone();
 
-        let text: String = entry.get_text().unwrap().to_string();
-        let error_correction: String = error_correction_combobox.get_active_text().unwrap().to_string();
-        let mode: String = mode_combobox.get_active_text().unwrap().to_string();
-        let size = size_spinbutton.get_value() as u32;
-        debug!("Text: \"{}\"", text);
-        debug!("Error correction: {}, mode: {}, size: {}", error_correction, mode, size);
-
-        let error_correction = match error_correction.as_str() {
-            "High (30%)" => EcLevel::H,
-            "Quartile (25%)" => EcLevel::Q,
-            "Medium (15%)" => EcLevel::M,
-            "Low (7%)" => EcLevel::L,
-            _ => unreachable!(),
-        };
-
-        match QrCode::with_error_correction_level(text, error_correction) {
-            Ok(qr) => {
-                let image = qr
-                    .render()
-                    .dark_color(Luma([0]))
-                    .light_color(Luma([255]))
-                    .quiet_zone(true)
-                    .min_dimensions(size, size)
-                    .build();
-
-                let (n, m) = image.dimensions();
-
-                let pixbuf: Pixbuf = Pixbuf::new(
-                    Colorspace::Rgb,
-                    false,
-                    8,
-                    n as i32,
-                    m as i32,
-                ).expect("Could not create pixbuf");
-
-                for (x, y, value) in image.enumerate_pixels() {
-                    let (red, green, blue, alpha) = value_to_color(*value);
-                    pixbuf.put_pixel(x as i32, y as i32, red, green, blue, alpha);
+        text_entry.connect_changed(move |text_entry| {
+            match on_text_changed(&text_entry, &error_correction_combobox, &size_spinbutton, &error_label, &qr_image) {
+                Ok(_) => (),
+                Err(error) => {
+                    let message = format!("Error: {}", error);
+                    warn!("Error: {}", error);
+                    error_label.set_text(&message);
                 }
+            }
+        });
+    }
 
-                qr_image.set_from_pixbuf(Some(&pixbuf));
+    {
+        let text_entry = text_entry.clone();
+        let error_correction_combobox = error_correction_combobox.clone();
+        let size_spinbutton = size_spinbutton.clone();
+        let error_label = error_label.clone();
+        let qr_image = qr_image.clone();
+
+        error_correction_combobox.connect_changed(move |error_correction_combobox| {
+            match on_text_changed(&text_entry, &error_correction_combobox, &size_spinbutton, &error_label, &qr_image) {
+                Ok(_) => (),
+                Err(error) => {
+                    let message = format!("Error: {}", error);
+                    warn!("Error: {}", error);
+                    error_label.set_text(&message);
+                }
             }
-            Err(error) => {
-                let message = format!("Error: {}", error);
-                warn!("Error: {}", error);
-                error_label.set_text(&message);
+        });
+    }
+
+    {
+        let text_entry = text_entry.clone();
+        let error_correction_combobox = error_correction_combobox.clone();
+        let size_spinbutton = size_spinbutton.clone();
+        let error_label = error_label.clone();
+        let qr_image = qr_image.clone();
+
+        size_spinbutton.connect_changed(move |size_spinbutton| {
+            match on_text_changed(&text_entry, &error_correction_combobox, &size_spinbutton, &error_label, &qr_image) {
+                Ok(_) => (),
+                Err(error) => {
+                    let message = format!("Error: {}", error);
+                    warn!("Error: {}", error);
+                    error_label.set_text(&message);
+                }
             }
-        }
-    });
+        });
+    }
+
+    {
+        let qr_image = qr_image.clone();
+        let error_label = error_label.clone();
+
+        save_button.connect_clicked(move |_| {
+            match on_save_button_clicked(&qr_image) {
+                Ok(_) => (),
+                Err(error) => {
+                    let message = format!("Error: {}", error);
+                    warn!("Error: {}", error);
+                    error_label.set_text(&message);
+                }
+            }
+        });
+    }
 
     window.show_all();
 }
@@ -130,6 +154,7 @@ fn parse_arguments() -> ArgMatches<'static> {
         )
         .get_matches()
 }
+
 fn setup_logging(verbosity: u64) {
     let default_log_filter = match verbosity {
         0 => "warn",
@@ -147,4 +172,92 @@ fn value_to_color(value: Luma<u8>) -> (u8, u8, u8, u8) {
     let [blue] = value.0;
     let alpha = 255;
     (red, green, blue, alpha)
+}
+
+fn on_text_changed(
+            entry: &Entry,
+            error_correction_combobox: &ComboBoxText,
+            size_spinbutton: &SpinButton,
+            error_label: &Label,
+            qr_image: &Image,
+        ) -> anyhow::Result<()> {
+    error_label.set_text("");
+
+    let text: String = entry.get_text().unwrap().to_string();
+    let error_correction: String = error_correction_combobox.get_active_text().unwrap().to_string();
+    let size = size_spinbutton.get_value() as u32;
+    debug!("Text: \"{}\"", text);
+    debug!("Error correction: {}, size: {}", error_correction, size);
+
+    let error_correction = match error_correction.as_str() {
+        "High (30%)" => EcLevel::H,
+        "Quartile (25%)" => EcLevel::Q,
+        "Medium (15%)" => EcLevel::M,
+        "Low (7%)" => EcLevel::L,
+        _ => unreachable!(),
+    };
+
+    let qr = QrCode::with_error_correction_level(text, error_correction)?;
+    let image = qr
+        .render()
+        .dark_color(Luma([0]))
+        .light_color(Luma([255]))
+        .quiet_zone(true)
+        .min_dimensions(size, size)
+        .build();
+
+    let (n, m) = image.dimensions();
+
+    let pixbuf: Pixbuf = Pixbuf::new(
+        Colorspace::Rgb,
+        false,
+        8,
+        n as i32,
+        m as i32,
+    ).ok_or(anyhow::anyhow!("Could not create pixbuf"))?;
+
+    for (x, y, value) in image.enumerate_pixels() {
+        let (red, green, blue, alpha) = value_to_color(*value);
+        pixbuf.put_pixel(x as i32, y as i32, red, green, blue, alpha);
+    }
+
+    qr_image.set_from_pixbuf(Some(&pixbuf));
+
+    Ok(())
+}
+
+fn on_save_button_clicked(qr_image: &Image) -> anyhow::Result<()> {
+    let filter = FileFilter::new();
+    filter.add_pixbuf_formats();
+
+    let dialog = FileChooserDialogBuilder::new()
+        .action(FileChooserAction::Save)
+        .filter(&filter)
+        .do_overwrite_confirmation(true)
+        .build();
+
+    dialog.add_button("Cancel", ResponseType::Cancel.into());
+    dialog.add_button("Save", ResponseType::Ok.into());
+
+    dialog.run();
+    dialog.hide();
+
+    match dialog.get_filename() {
+        Some(filename) => {
+            warn!("Filename: {}", filename.display());
+            let buffer = qr_image
+                .get_pixbuf()
+                .ok_or(anyhow::anyhow!("Missing pixbuf"))?
+                .save_to_bufferv(
+                    "png",
+                    &vec![]
+                )?;
+
+                let mut file = File::create(filename)?;
+                file.write_all(&buffer)?;
+        }
+        None => (),
+    }
+
+    Ok(())
 }
