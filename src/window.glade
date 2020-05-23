@@ -110,6 +110,7 @@
           <object class="GtkToolButton" id="save_button">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Save</property>
             <property name="use_underline">True</property>
             <property name="stock_id">gtk-save-as</property>
           </object>
