@@ -1,0 +1,270 @@
+---
+kind: pipeline
+type: docker
+name: build and test
+trigger:
+  event:
+    exclude:
+    - tag
+    include:
+    - push
+
+steps:
+- name: restore cache
+  image: plugins/s3-cache
+  settings:
+    endpoint:
+      from_secret: s3_endpoint
+    access_key:
+      from_secret: s3_access_key
+    secret_key:
+      from_secret: s3_secret_key
+    root: drone
+    restore: true
+
+- name: check format
+  failure: ignore
+  image: docker.claudiomattera.it/claudiomattera/rust:1.52.0
+  environment:
+    CARGO_HOME: "./.cargo_home/"
+  commands:
+  - cargo fmt --all -- --check
+
+- name: run linter
+  failure: ignore
+  image: docker.claudiomattera.it/claudiomattera/rust:1.52.0
+  environment:
+    CARGO_HOME: "./.cargo_home/"
+  commands:
+  - cargo clippy --all-targets --all-features -- -D warnings
+
+- name: build
+  image: docker.claudiomattera.it/claudiomattera/rust:1.52.0
+  environment:
+    CARGO_HOME: "./.cargo_home/"
+  commands:
+  - apt-get update
+  - apt-get install -y gtk+-3.0-dev librust-pango-dev
+  - cargo build --all-targets --all-features
+
+- name: test
+  image: docker.claudiomattera.it/claudiomattera/rust:1.52.0
+  environment:
+    CARGO_HOME: "./.cargo_home/"
+  commands:
+  - apt-get update
+  - apt-get install -y gtk+-3.0-dev librust-pango-dev
+  - cargo test
+
+- name: rebuild cache
+  image: plugins/s3-cache
+  settings:
+    endpoint:
+      from_secret: s3_endpoint
+    access_key:
+      from_secret: s3_access_key
+    secret_key:
+      from_secret: s3_secret_key
+    root: drone
+    rebuild: true
+    mount:
+      - ./target
+      - ./.cargo_home/registry/
+
+---
+kind: pipeline
+type: docker
+name: build release
+trigger:
+  event:
+  - tag
+
+steps:
+- name: build
+  image: docker.claudiomattera.it/claudiomattera/rust:1.52.0
+  commands:
+  - apt-get update
+  - apt-get install -y gtk+-3.0-dev librust-pango-dev
+  - cargo build --release
+
+- name: package deb
+  image: docker.claudiomattera.it/claudiomattera/rust:1.52.0
+  commands:
+  - cargo deb --no-build
+
+- name: create release on gitea
+  image: plugins/gitea-release
+  settings:
+    base_url:
+      from_secret: gitea_host
+    api_key:
+      from_secret: gitea_token
+    title: "Version ${DRONE_TAG}"
+    files:
+      - target/release/${DRONE_REPO_NAME}
+      - target/debian/${DRONE_REPO_NAME}_${DRONE_TAG}_amd64.deb
+    checksum:
+      - sha512
+
+---
+kind: pipeline
+type: docker
+name: notification
+
+depends_on:
+- build and test
+
+trigger:
+  event:
+    exclude:
+    - tag
+    include:
+    - push
+  status:
+  - failure
+
+
+steps:
+- name: notification
+  image: docker.claudiomattera.it/claudiomattera/drone-gotify:1
+  settings:
+    host:
+      from_secret: gotify_host
+    token:
+      from_secret: gotify_token
+    title: >
+        ✗ Build {{drone.build.number}} failed for {{drone.repo.name}}
+    message: >
+        Commit *{{drone.commit.message | trim}}* pushed by {{drone.commit.author}} on {{drone.commit.branch}}
+
+        Failed stages:
+
+        {% for stage in drone.failed.stages | split(pat=",") %}
+        - {{ stage }}
+        {% endfor %}
+
+        {% set build_link = drone.system.proto ~ "://" ~ drone.system.host ~ "/" ~ drone.repo.owner ~ "/" ~ drone.repo.name ~ "/" ~ drone.build.number -%}
+        See the complete report at <{{ build_link }}>.
+
+---
+kind: pipeline
+type: docker
+name: notification release
+
+depends_on:
+- build release
+
+trigger:
+  event:
+  - tag
+  status:
+  - success
+  - failure
+
+
+steps:
+- name: notification
+  image: docker.claudiomattera.it/claudiomattera/drone-gotify:1
+  settings:
+    host:
+      from_secret: gotify_host
+    token:
+      from_secret: gotify_token
+    title: >
+        {% if drone.build.status == "success" %}
+        ✓ Release build succeeded for {{drone.repo.name}}-{{drone.tag}}
+        {% else %}
+        ✗ Release build failed for {{drone.repo.name}}-{{drone.tag}}
+        {% endif %}
+    message: >
+        {% if drone.build.status == "success" %}
+        {% else %}
+        Failed steps:
+
+          {% for stage in drone.failed.stages | split(pat=",") %}
+          - {{ stage }}
+          {% endfor %}
+        {% endif %}
+
+        {% set build_link = drone.system.proto ~ "://" ~ drone.system.host ~ "/" ~ drone.repo.owner ~ "/" ~ drone.repo.name ~ "/" ~ drone.build.number -%}
+        See the complete report at <{{ build_link }}>.
+
+---
+kind: pipeline
+type: docker
+name: daily security report
+trigger:
+  event:
+  - cron
+  cron:
+  - daily
+
+steps:
+- name: check security advisories
+  image: docker.claudiomattera.it/claudiomattera/rust:1.52.0
+  commands:
+  - cargo audit --deny unsound --deny yanked
+
+- name: notification
+  depends_on:
+  - check security advisories
+  when:
+    status:
+      - failure
+  image: docker.claudiomattera.it/claudiomattera/drone-gotify:1
+  settings:
+    host:
+      from_secret: gotify_host
+    token:
+      from_secret: gotify_token
+    title: >
+        ✗ Security audit failed for {{drone.repo.name}}
+    message: >
+        Dependencies of {{ drone.repo.name }} were flagged in the RustSec Advisory Database.
+
+        {% set report_link = drone.system.proto ~ "://" ~ drone.system.host ~ "/" ~ drone.repo.owner ~ "/" ~ drone.repo.name ~ "/" ~ drone.build.number -%}
+        See the complete report at <{{ report_link }}>.
+
+---
+kind: pipeline
+type: docker
+name: weekly cache flush
+trigger:
+  event:
+  - cron
+  cron:
+  - weekly
+
+steps:
+- name: flush cache
+  image: plugins/s3-cache:1
+  settings:
+    endpoint:
+      from_secret: s3_endpoint
+    access_key:
+      from_secret: s3_access_key
+    secret_key:
+      from_secret: s3_secret_key
+    root: drone
+    flush: true
+    flush_age: 7
+
+- name: notification
+  depends_on:
+  - flush cache
+  when:
+    status:
+      - failure
+  image: docker.claudiomattera.it/claudiomattera/drone-gotify:1
+  settings:
+    host:
+      from_secret: gotify_host
+    token:
+      from_secret: gotify_token
+    title: >
+        ✗ S3 cache flush failed for {{drone.repo.name}}
+    message: >
+        It was not possible to cache the S3 cache of {{ drone.repo.name }}.
+
+        {% set report_link = drone.system.proto ~ "://" ~ drone.system.host ~ "/" ~ drone.repo.owner ~ "/" ~ drone.repo.name ~ "/" ~ drone.build.number -%}
+        See the complete report at <{{ report_link }}>.
